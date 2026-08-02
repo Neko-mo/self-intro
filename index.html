@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find My Favorite ___</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07060B;       /* 背景:ほぼ黒に近いダークパープル */
+    --surface: #120E1B;  /* カードなどの面の色 */
+    --text: #E5E1F7;     /* 文字色 */
+    --accent: #B026FF;   /* メインカラー:エレクトリックパープル */
+    --accent2: #29FFC6;  /* サブカラー:ネオングリーン */
+
+    /* 以下は上の5色から自動計算する派生色(直接編集不要) */
+    --sub: color-mix(in srgb, var(--text) 55%, var(--bg));
+    --line: color-mix(in srgb, var(--accent) 30%, var(--bg));
+    --accent-deep: color-mix(in srgb, var(--accent) 75%, black);
+    --accent2-soft: color-mix(in srgb, var(--accent2) 14%, var(--bg));
+    --hidden-bg: color-mix(in srgb, var(--surface) 65%, var(--bg));
+    --shadow: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 80px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  h1 {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-weight: 900;
+    font-size: clamp(26px, 6vw, 38px);
+    text-align: center;
+    margin: 0 0 6px;
+    color: var(--text);
+  }
+
+  .mode-switch {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 24px 0 20px;
+  }
+  .mode-btn {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--sub);
+    padding: 8px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .mode-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+
+  .search-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 28px 24px;
+    box-shadow: 0 10px 30px var(--shadow);
+    margin-bottom: 20px;
+  }
+
+  .prompt {
+    font-size: 15px;
+    color: var(--sub);
+    margin-bottom: 14px;
+    text-align: center;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: clamp(20px, 5vw, 26px);
+    font-weight: 700;
+  }
+
+  .input-row .fixed { color: var(--text); white-space: nowrap; }
+
+  #blank {
+    border: none;
+    border-bottom: 3px solid var(--accent);
+    background: transparent;
+    outline: none;
+    text-align: center;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: inherit;
+    font-weight: 700;
+    color: var(--accent2);
+    width: 8ch;
+    padding: 2px 4px;
+  }
+
+  #blank::placeholder { color: var(--line); font-weight: 500; }
+
+  .submit-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  button.go {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 999px;
+    padding: 12px 32px;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  button.go:hover { background: var(--accent-deep); transform: translateY(-1px); }
+  button.go:active { transform: translateY(0); }
+
+  .feedback {
+    text-align: center;
+    min-height: 22px;
+    font-size: 14px;
+    margin-top: 14px;
+    font-weight: 500;
+  }
+
+  .feedback.miss { color: var(--sub); }
+  .feedback.hit { color: var(--accent2); }
+  .feedback.dup { color: var(--accent); }
+  .feedback.hint { color: var(--accent); font-weight: 700; }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 4px 18px;
+    font-size: 13px;
+    color: var(--sub);
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--line);
+    border-radius: 999px;
+    margin: 0 12px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 10px;
+  }
+
+  .card {
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    transition: transform 0.4s ease, background 0.3s ease, border-color 0.3s ease;
+  }
+
+  .card.hidden-card {
+    background: var(--hidden-bg);
+    color: var(--line);
+  }
+
+  .card.hidden-card .q { font-size: 32px; color: var(--line); font-family: 'Zen Maru Gothic', sans-serif; }
+
+  .card.found {
+    background: var(--accent2-soft);
+    border-color: var(--accent2);
+    animation: pop 0.45s ease;
+  }
+
+  .card .topic {
+    font-size: 10px;
+    color: var(--sub);
+    margin-bottom: 4px;
+  }
+
+  .card .answer {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--accent2);
+    line-height: 1.3;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.85); }
+    55% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  .celebration {
+    display: none;
+    text-align: center;
+    margin-top: 28px;
+    padding: 24px;
+    border-radius: 18px;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+
+  .celebration.show { display: block; animation: pop 0.5s ease; }
+  .celebration .big { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
+  .celebration .small { font-size: 13px; opacity: 0.9; font-family: 'Noto Sans JP', sans-serif; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .celebration { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>好きなもの</h1>
+
+  <div class="mode-switch">
+    <button class="mode-btn active" data-level="easy">ノーマルモード</button>
+    <button class="mode-btn" data-level="hard">マスターモード</button>
+  </div>
+
+  <div class="search-card">
+    <div class="prompt">カテゴリを入力</div>
+    <div class="input-row">
+      <span class="fixed">好きな</span>
+      <input id="blank" type="text" placeholder="〇〇" autocomplete="off">
+    </div>
+    <div class="submit-row">
+      <button class="go" id="submitBtn">さがす</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="progress-row">
+    <span>発見済み</span>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <span id="progressText">0 / 5</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="celebration" id="celebration">
+    <div class="big">🎉コンプリート達成！</div>
+    <div class="small">すべて見つけました！</div>
+  </div>
+</div>
+
+<script>
+  const items = [
+    { topic: "季節", aliases: ["季節"], answer: ["秋"], level: "easy" },
+    { topic: "色", aliases: ["色"], answer: ["勿忘草色"], level: "easy" },
+    { topic: "食べ物", aliases: ["食べ物","食物","料理"], answer: ["冷やし中華","春雨","春巻き"], level: "easy" },
+    { topic: "飲み物", aliases: ["飲み物","ドリンク"], answer: ["牛乳"], level: "easy" },
+    { topic: "おにぎり", aliases: ["おにぎりの具","おにぎり"], answer: ["とり五目"], level: "hard" },
+    { topic: "寿司", aliases: ["寿司","寿司ネタ","お寿司","ネタ"], answer: ["サーモン","つぶ貝","オクラ"], level: "hard" },
+    { topic: "おやつ", aliases: ["おやつ","お菓子","デザート","スナック"], answer: ["堅あげポテト","カタラーナ"], level: "hard" },
+    { topic: "動物", aliases: ["動物","哺乳類"], answer: ["ウシ"], level: "easy" },
+    { topic: "鳥", aliases: ["鳥","鳥類"], answer: ["ツリスガラ"], level: "hard" },
+    { topic: "魚", aliases: ["魚","魚類"], answer: ["ホウライエソ"], level: "hard" },
+    { topic: "花", aliases: ["花","植物"], answer: ["ムスカリ"], level: "easy" },
+    { topic: "キノコ", aliases: ["キノコ","きのこ","茸","菌"], answer: ["タマゴタケ"], level: "hard" },
+    { topic: "野菜", aliases: ["野菜"], answer: ["ズッキーニ"], level: "easy" },
+    { topic: "果物", aliases: ["果物","フルーツ"], answer: ["ぶどう","ナシ","(メロン)"], level: "easy" },
+    { topic: "スポーツ", aliases: ["スポーツ","競技","球技"], answer: ["卓球"], level: "easy" },
+    { topic: "国", aliases: ["国","地域"], answer: ["日本"], level: "easy" },
+    { topic: "スポット", aliases: ["場所","旅行先","スポット","観光地","自然"], answer: ["ナイアガラの滝"], level: "easy" },
+    { topic: "風景", aliases: ["風景","景色","写真","景観"], answer: ["工場の夜景"], level: "hard" },
+    { topic: "星", aliases: ["星","惑星"], answer: ["海王星"], level: "hard" },
+    { topic: "鉱物", aliases: ["鉱物","宝石","石"], answer: ["藍晶石"], level: "hard" },
+    { topic: "言葉", aliases: ["言葉","名言","教訓","ことわざ","慣用句","四字熟語"], answer: ["犂牛之子"], level: "easy" },
+    { topic: "教科", aliases: ["教科","勉強","科目"], answer: ["数学"], level: "hard" },
+    { topic: "数", aliases: ["数","数字","記号","式"], answer: ["τ"], level: "hard" },
+    { topic: "演算", aliases: ["計算","演算"], answer: ["テトレーション"], level: "hard" },
+    { topic: "偉人", aliases: ["偉人","有名人","人","歴史人物"], answer: ["杉原千畝"], level: "hard" },
+    { topic: "AI", aliases: ["AI","ai","人工知能"], answer: ["Claude"], level: "hard" },
+    { topic: "ゲーム", aliases: ["ゲーム","テレビゲーム","遊び"], answer: ["ぷよテト","ゼルダ","スタバレ"], level: "easy" },
+    { topic: "本", aliases: ["本","図書","話","物語"], answer: ["二分間の冒険"], level: "easy" },
+    { topic: "絵", aliases: ["絵","絵画","美術","アート"], answer: ["ジヴェルニー\nの積みわら"], level: "easy" },
+    { topic: "映画", aliases: ["映画"], answer: ["チャーリーと\nチョコレート\n工場"], level: "easy" },
+    { topic: "ドラマ", aliases: ["ドラマ"], answer: ["TOKYO MER"], level: "easy" },
+    { topic: "アニメ", aliases: ["アニメ","漫画"], answer: ["ウサビッチ","名作くん"], level: "easy" },
+    { topic: "ミュージシャン", aliases: ["ミュージシャン","バンド","音楽アーティスト","アーティスト","歌手"], answer: ["GRe4N BOYS"], level: "easy" },
+    { topic: "ポップス曲", aliases: ["ポップス","歌"], answer: ["GOLDEN","ANTENNA","Override"], level: "easy" },
+    { topic: "クラシック曲", aliases: ["芸術音楽","クラシック","クラシック曲","古典音楽"], answer: ["主題と変奏"], level: "hard" },
+    { topic: "ゲーム曲", aliases: ["ゲーム曲","ゲーム音楽","bgm","BGM","ゲームBGM"], answer: ["星羅征く旅人"], level: "hard" },
+    { topic: "楽器", aliases: ["楽器"], answer: ["ピアノ","ヴァイオリン","テルミン"], level: "hard" },
+    { topic: "キー", aliases: ["キー","調"], answer: ["D♯m"], level: "hard" },
+    { topic: "ブランド", aliases: ["石鹸","ブランド","香り","匂い"], answer: ["牛乳石鹸"], level: "hard" },
+    { topic: "元素", aliases: ["元素","原子","物質"], answer: ["Xe","Mo","P"], level: "hard" },
+  ];
+
+  // 正解ではないが、入力されたときに特別なメッセージを返したい言葉
+  const specialFeedback = [
+    { trigger: ["ヒント","分からない","わからない","難しい"], message: "難しい○○(master):おにぎり、星、鉱物、演算、キー、ブランド、元素、風景" },
+    { trigger: ["Youtuber","ユーチューバー","芸能人","配信者"], message: "何人かいる、あるいはころころ変わるかも..." },
+    { trigger: ["字","文字","漢字","アルファベット","ひらがな","カタカナ"], message: "言葉は見つかりそう..." },
+    { trigger: ["曲","音楽","楽曲","音","Jpop"], message: "曲はポップス(normal)、クラシック(master)、ゲーム音楽(master)が見つかりそう..." },
+    { trigger: ["牛","ウシ","うし"], message: "牛はみんなかわいい" },
+    { trigger: ["天気","時間帯"], message: "気分によって変わる..." },
+    { trigger: ["こと","もの"], message: "もっと詳しく..." },
+    { trigger: ["生き物","生物"], message: "もう少し詳しく..." },
+  ];
+
+  let currentLevel = "easy";
+
+  function getActiveItems() {
+    return currentLevel === "easy"
+      ? items.filter(item => item.level === "easy")
+      : items;
+  }
+
+  function formatAnswer(answer) {
+    const list = Array.isArray(answer) ? answer : [answer];
+    return list.map(a => a.replace(/\n/g, '<br>')).join('<br>');
+  }
+
+  const grid = document.getElementById('grid');
+  const feedback = document.getElementById('feedback');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const celebration = document.getElementById('celebration');
+  const blank = document.getElementById('blank');
+  const submitBtn = document.getElementById('submitBtn');
+
+  const found = new Set();
+
+  function normalize(str) {
+    return str.trim().toLowerCase().replace(/\s+/g, '');
+  }
+
+  function render() {
+    grid.innerHTML = '';
+    getActiveItems().forEach((item, i) => {
+      const card = document.createElement('div');
+      if (found.has(i)) {
+        card.className = 'card found';
+        card.innerHTML = `<div class="topic">好きな${item.topic}</div><div class="answer">${formatAnswer(item.answer)}</div>`;
+      } else {
+        card.className = 'card hidden-card';
+        card.innerHTML = `<div class="q">?</div>`;
+      }
+      grid.appendChild(card);
+    });
+    progressFill.style.width = (found.size / getActiveItems().length * 100) + '%';
+    progressText.textContent = `${found.size} / ${getActiveItems().length}`;
+    if (found.size === getActiveItems().length) {
+      celebration.classList.add('show');
+    }
+  }
+
+  function trySubmit() {
+    const val = normalize(blank.value);
+    if (!val) return;
+
+    const idx = getActiveItems().findIndex(item =>
+      item.aliases.some(alias => normalize(alias) === val)
+    );
+
+    const specialIdx = specialFeedback.findIndex(entry =>
+      entry.trigger.some(word => normalize(word) === val)
+    );
+
+    if (idx !== -1 && !found.has(idx)) {
+      found.add(idx);
+      const answerText = (Array.isArray(getActiveItems()[idx].answer) ? getActiveItems()[idx].answer.join('、') : getActiveItems()[idx].answer).replace(/\n/g, '');
+      feedback.textContent = `見つけた！ 好きな${getActiveItems()[idx].topic}: ${answerText}`;
+      feedback.className = 'feedback hit';
+      render();
+    } else if (idx !== -1 && found.has(idx)) {
+      feedback.textContent = `"${getActiveItems()[idx].topic}"は既に発見されている`;
+      feedback.className = 'feedback dup';
+    } else if (specialIdx !== -1) {
+      feedback.textContent = specialFeedback[specialIdx].message;
+      feedback.className = 'feedback hint';
+    } else {
+      feedback.textContent = `"${blank.value}"は見つからない`;
+      feedback.className = 'feedback miss';
+    }
+    blank.value = '';
+    blank.focus();
+  }
+
+  submitBtn.addEventListener('click', trySubmit);
+  blank.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') trySubmit();
+  });
+
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentLevel = btn.dataset.level;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      found.clear();
+      feedback.textContent = '';
+      render();
+    });
+  });
+
+  render();
+</script>
+</body>
+</html>
