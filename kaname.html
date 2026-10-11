@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find My Favorite ___</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0705;       /* 背景:ほぼ黒に近いダークブラウン */
+    --surface: #1A110B;  /* カードなどの面の色 */
+    --text: #FFF1DC;     /* 文字色 */
+    --accent: #FF8A1F;   /* メインカラー:ネオンオレンジ */
+    --accent2: #FFE14D;  /* サブカラー:イエロー */
+
+    /* 以下は上の5色から自動計算する派生色(直接編集不要) */
+    --sub: color-mix(in srgb, var(--text) 55%, var(--bg));
+    --line: color-mix(in srgb, var(--accent) 30%, var(--bg));
+    --accent-deep: color-mix(in srgb, var(--accent) 75%, black);
+    --accent2-soft: color-mix(in srgb, var(--accent2) 14%, var(--bg));
+    --hidden-bg: color-mix(in srgb, var(--surface) 65%, var(--bg));
+    --shadow: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 80px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  h1 {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-weight: 900;
+    font-size: clamp(26px, 6vw, 38px);
+    text-align: center;
+    margin: 0 0 6px;
+    color: var(--text);
+  }
+
+  .mode-switch {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 24px 0 20px;
+  }
+  .mode-btn {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--sub);
+    padding: 8px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .mode-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+
+  .search-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 28px 24px;
+    box-shadow: 0 10px 30px var(--shadow);
+    margin-bottom: 20px;
+  }
+
+  .prompt {
+    font-size: 15px;
+    color: var(--sub);
+    margin-bottom: 14px;
+    text-align: center;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: clamp(20px, 5vw, 26px);
+    font-weight: 700;
+  }
+
+  .input-row .fixed { color: var(--text); white-space: nowrap; }
+
+  #blank {
+    border: none;
+    border-bottom: 3px solid var(--accent);
+    background: transparent;
+    outline: none;
+    text-align: center;
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-size: inherit;
+    font-weight: 700;
+    color: var(--accent2);
+    width: 8ch;
+    padding: 2px 4px;
+  }
+
+  #blank::placeholder { color: var(--line); font-weight: 500; }
+
+  .submit-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  button.go {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 999px;
+    padding: 12px 32px;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  button.go:hover { background: var(--accent-deep); transform: translateY(-1px); }
+  button.go:active { transform: translateY(0); }
+
+  .feedback {
+    text-align: center;
+    min-height: 22px;
+    font-size: 14px;
+    margin-top: 14px;
+    font-weight: 500;
+  }
+
+  .feedback.miss { color: var(--sub); }
+  .feedback.hit { color: var(--accent2); }
+  .feedback.dup { color: var(--accent); }
+  .feedback.hint { color: var(--accent); font-weight: 700; }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 4px 18px;
+    font-size: 13px;
+    color: var(--sub);
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--line);
+    border-radius: 999px;
+    margin: 0 12px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 10px;
+  }
+
+  .card {
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    transition: transform 0.4s ease, background 0.3s ease, border-color 0.3s ease;
+  }
+
+  .card.hidden-card {
+    background: var(--hidden-bg);
+    color: var(--line);
+  }
+
+  .card.hidden-card .q { font-size: 32px; color: var(--line); font-family: 'Zen Maru Gothic', sans-serif; }
+
+  .card.found {
+    background: var(--accent2-soft);
+    border-color: var(--accent2);
+    animation: pop 0.45s ease;
+  }
+
+  .card .topic {
+    font-size: 10px;
+    color: var(--sub);
+    margin-bottom: 4px;
+  }
+
+  .card .answer {
+    font-family: 'Zen Maru Gothic', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--accent2);
+    line-height: 1.3;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.85); }
+    55% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  .celebration {
+    display: none;
+    text-align: center;
+    margin-top: 28px;
+    padding: 24px;
+    border-radius: 18px;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Zen Maru Gothic', sans-serif;
+  }
+
+  .celebration.show { display: block; animation: pop 0.5s ease; }
+  .celebration .big { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
+  .celebration .small { font-size: 13px; opacity: 0.9; font-family: 'Noto Sans JP', sans-serif; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .celebration { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>好きなもの</h1>
+
+  <div class="mode-switch">
+    <button class="mode-btn active" data-level="easy">ノーマルモード</button>
+    <button class="mode-btn" data-level="hard">マスターモード</button>
+  </div>
+
+  <div class="search-card">
+    <div class="prompt">カテゴリを入力</div>
+    <div class="input-row">
+      <span class="fixed">好きな</span>
+      <input id="blank" type="text" placeholder="〇〇" autocomplete="off">
+    </div>
+    <div class="submit-row">
+      <button class="go" id="submitBtn">さがす</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="progress-row">
+    <span>発見済み</span>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <span id="progressText">0 / 5</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="celebration" id="celebration">
+    <div class="big">🎉コンプリート達成！</div>
+    <div class="small">すべて見つけました！</div>
+  </div>
+</div>
+
+<script>
+  const items = [
+    { topic: "色", aliases: ["色"], answer: ["東雲色"], level: "easy" },
+    { topic: "季節", aliases: ["季節"], answer: ["冬"], level: "easy" },
+    { topic: "料理", aliases: ["料理"], answer: ["天津飯"], level: "easy" },
+    { topic: "スイーツ", aliases: ["お菓子","スイーツ","デザート"], answer: ["白玉ぜんざい","ハイカカオチョコ"], level: "easy" },
+    { topic: "果物", aliases: ["果物","フルーツ"], answer: ["葡萄"], level: "easy" },
+    { topic: "文字", aliases: ["文字","漢字"], answer: ["淡"], level: "hard" },
+    { topic: "言葉", aliases: ["言葉","四字熟語","熟語"], answer: ["迦楼羅心"], level: "hard" },
+    { topic: "科目", aliases: ["科目","教科","勉強"], answer: ["世界史"], level: "easy" },
+    { topic: "国", aliases: ["国","地域"], answer: ["スペイン"], level: "easy" },
+    { topic: "都市", aliases: ["都市","市"], answer: ["横浜"], level: "hard" },
+    { topic: "駅", aliases: ["駅"], answer: ["徳山駅"], level: "hard" },
+    { topic: "コンビニ", aliases: ["お店","店","コンビニ"], answer: ["ローソン"], level: "hard" },
+    { topic: "先生", aliases: ["先生","教師"], answer: ["矢野慎一先生♡"], level: "hard" },
+    { topic: "マンガ", aliases: ["まんが","マンガ","漫画"], answer: ["かぐや様は告らせたい"], level: "easy" },
+    { topic: "アニメ", aliases: ["アニメ"], answer: ["推しの子","咲-saki-"], level: "easy" },
+    { topic: "ゲーム", aliases: ["遊び","ゲーム"], answer: ["麻雀"], level: "easy" },
+    { topic: "麻雀の役", aliases: ["麻雀の役","役","役種"], answer: ["立直"], level: "hard" },
+    { topic: "麻雀の牌", aliases: ["牌","麻雀牌"], answer: ["中"], level: "hard" },
+    { topic: "配信者", aliases: ["配信者","youtuber","ユーチューバー"], answer: ["latte","めめんともり"], level: "hard" },
+    { topic: "話", aliases: ["話","脚本","ノベライズ作品","エピソード"], answer: ["天国からのビデオレター"], level: "hard" },
+    { topic: "元号", aliases: ["元号","時代"], answer: ["元禄"], level: "hard" },
+    { topic: "キャラクター", aliases: ["キャラ","キャラクター","ボイスロイド","voiceroid","VOICEROID"], answer: ["琴葉茜"], level: "easy" },
+    { topic: "曲", aliases: ["曲","合唱曲"], answer: ["証"], level: "easy" },
+
+  ];
+
+  // 正解ではないが、入力されたときに特別なメッセージを返したい言葉
+  const specialFeedback = [
+    { trigger: ["ヒント","分からない","わからない","難しい"], message: "難しい○○:魚、場所、絵画、アーティスト、おやつ、国" },
+    { trigger: ["食べ物","たべもの"], message: "食べ物は料理、スイーツ、果物が見つかりそう" },
+    { trigger: ["こと","もの"], message: "もっと詳しく..." },
+    { trigger: ["人",], message: "もちろん君のことが大好きだよ♡" },
+    { trigger: ["タイプ",], message: "好きになった人がタイプになる" },
+  ];
+
+  let currentLevel = "easy";
+
+  function getActiveItems() {
+    return currentLevel === "easy"
+      ? items.filter(item => item.level === "easy")
+      : items;
+  }
+
+  function formatAnswer(answer) {
+    const list = Array.isArray(answer) ? answer : [answer];
+    return list.map(a => a.replace(/\n/g, '<br>')).join('<br>');
+  }
+
+  const grid = document.getElementById('grid');
+  const feedback = document.getElementById('feedback');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const celebration = document.getElementById('celebration');
+  const blank = document.getElementById('blank');
+  const submitBtn = document.getElementById('submitBtn');
+
+  const found = new Set();
+
+  function normalize(str) {
+    return str.trim().toLowerCase().replace(/\s+/g, '');
+  }
+
+  function render() {
+    grid.innerHTML = '';
+    getActiveItems().forEach((item, i) => {
+      const card = document.createElement('div');
+      if (found.has(i)) {
+        card.className = 'card found';
+        card.innerHTML = `<div class="topic">好きな${item.topic}</div><div class="answer">${formatAnswer(item.answer)}</div>`;
+      } else {
+        card.className = 'card hidden-card';
+        card.innerHTML = `<div class="q">?</div>`;
+      }
+      grid.appendChild(card);
+    });
+    progressFill.style.width = (found.size / getActiveItems().length * 100) + '%';
+    progressText.textContent = `${found.size} / ${getActiveItems().length}`;
+    if (found.size === getActiveItems().length) {
+      celebration.classList.add('show');
+    }
+  }
+
+  function trySubmit() {
+    const val = normalize(blank.value);
+    if (!val) return;
+
+    const idx = getActiveItems().findIndex(item =>
+      item.aliases.some(alias => normalize(alias) === val)
+    );
+
+    const specialIdx = specialFeedback.findIndex(entry =>
+      entry.trigger.some(word => normalize(word) === val)
+    );
+
+    if (idx !== -1 && !found.has(idx)) {
+      found.add(idx);
+      const answerText = (Array.isArray(getActiveItems()[idx].answer) ? getActiveItems()[idx].answer.join('、') : getActiveItems()[idx].answer).replace(/\n/g, '');
+      feedback.textContent = `見つけた！ 好きな${getActiveItems()[idx].topic}: ${answerText}`;
+      feedback.className = 'feedback hit';
+      render();
+    } else if (idx !== -1 && found.has(idx)) {
+      feedback.textContent = `"${getActiveItems()[idx].topic}"は既に発見されている`;
+      feedback.className = 'feedback dup';
+    } else if (specialIdx !== -1) {
+      feedback.textContent = specialFeedback[specialIdx].message;
+      feedback.className = 'feedback hint';
+    } else {
+      feedback.textContent = `"${blank.value}"は見つからない`;
+      feedback.className = 'feedback miss';
+    }
+    blank.value = '';
+    blank.focus();
+  }
+
+  submitBtn.addEventListener('click', trySubmit);
+  blank.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') trySubmit();
+  });
+
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentLevel = btn.dataset.level;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      found.clear();
+      feedback.textContent = '';
+      render();
+    });
+  });
+
+  render();
+</script>
+</body>
+</html>
